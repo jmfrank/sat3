@@ -1,0 +1,7 @@
+#BioProject PRJEB4337
+
+
+#GeneID	adrenal	appendix	bone marrow	brain	colon	duodenum	endometrium	esophagus	fat	gall bladder	heart	kidney	liver	lung	lymph node	ovary	pancreas	placenta	prostate	salivary gland	skin	small intestine	spleen	stomach	testis	thyroid	urinary bladder	
+112268260	0.284	0.348	0.253	0.528	0.154	0.199	0.265	0.626	1.1	0.304	0.239	0.23	0.173	0.313	0.229	0.277	0.085	0.354	0.534	0.161	0.498	0.174	0.325	0.134	0.842	0.378	0.232	
+
+
