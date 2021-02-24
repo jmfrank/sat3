@@ -13,7 +13,6 @@ def get_fasta_faidx( in_file):
 
     F = pysam.FastaFile(in_file)
 
-
     return F
 
 # Find repeats that match substring(s)
@@ -43,6 +42,18 @@ def load_repeat_masker_data(in_file):
     # calculate lengths.
     data["length"] = data["query_end"] - data["query_start"]
 
+    return data
+
+# Load simple bam file. *** might need to change column definition.
+def load_bin_bam(in_file):
+    data = pd.read_csv( in_file, header=None, delim_whitespace=True)
+    data.columns = ['contig','start','stop','count']
+
+    # Replace periods with 0.
+    data.loc[data['count']=='.','count']=0
+
+    # Convert columns to integers.
+    data = data.astype({'contig': str, 'start': int, 'stop': int, 'count': int})
 
     return data
 

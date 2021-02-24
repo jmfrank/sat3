@@ -17,6 +17,7 @@ repeat_data = load_repeat_masker_data(sat3_matches)
 #repeat_data = filter_pandas(repeat_data, length=[80000,float('inf')])
 
 fig, axs = plt.subplots(1, 3, tight_layout=True)
+fig.show()
 
 axs[0].hist(repeat_data['length'], bins=50)
 axs[0].set_yscale('log')

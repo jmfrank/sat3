@@ -1,91 +1,95 @@
+# Find genetic elements nearby CATTCC repeat clusters.
 
-
-# Scratch script for getting started with genomics.
-
-import os, pysam
+import os, pysam, math
 import pandas as pd
+from gen import gen
 
 from utilities import extract_matching_strings, load_repeat_masker_data, get_fasta_faidx, generate_rna_dataframe
 from utilities import nearest_distance, filter_pandas, filter_similar_transcripts
+from utilities import load_bin_bam
 
 # Define file system.
-genomes_dir ='/media/ngs/data/genomes/'
+genomes_dir ='/media/ngs/data/genomes/chm13_v1.0/'
+#genomes_dir ='/Users/franklin/Dropbox/TEAD_paper/data/genomics/chm13_v1.0/'
+genome_fa = 'chm13.draft_v1.0.fasta'
+genome = gen(genomes_dir, genome_fa)
 
-refseq_assembly_genome_dir ='GRCh38.p13/'
-refseq_assembly_genome = genomes_dir+refseq_assembly_genome_dir+'GCF_000001405.39_GRCh38.p13_genomic.fna'
-refseq_assembly_aligned_transcripts = genomes_dir+refseq_assembly_genome_dir+'RefSeq_transcripts_alignments/'+'GCF_000001405.39_GRCh38.p13_modelrefseq_alns.bam'
-bamfile = pysam.AlignmentFile(refseq_assembly_aligned_transcripts)
+# Add repeat bin file.
+genome.add_field('binned_repeats','binned_CATTCC.bed')
 
-# Let's look at the recently assembled genome
-HG002_CCS_dir = 'HG002_CCS_canu_paternal/'
-HG002_CCS_genome = genomes_dir + HG002_CCS_dir + 'GCA_004796285.1_HG002_CCS_canu_paternal_1.0_genomic.fna'
-HG002_CCS_aligned_bam = genomes_dir + HG002_CCS_dir + 'aligned_to_GRCh38.p13.bam'
-sat_bam = pysam.AlignmentFile(HG002_CCS_aligned_bam)
-HG002_CCS_rna_aligned_bam = genomes_dir + HG002_CCS_dir + 'RNA_aligned_to_HG002.bam'
-rna_bam = pysam.AlignmentFile(HG002_CCS_rna_aligned_bam)
+# Add rna mapped to genome.
+genome.add_field('rna','RNA_aligned.bam')
 
-# Repeat masker file.
-HG002_CCS_rm = genomes_dir + HG002_CCS_dir + 'GCA_004796285.1_HG002_CCS_canu_paternal_1.0_rm.out'
-repeats=['ATTCC', 'GGAAT', 'CCTTA', 'TAAGG', 'HSATII']
-repeats=['ATTCC', 'GGAAT', 'CCTTA', 'TAAGG','HSATII']
 # maximum distance between end of repeat and beginning of transcript:
 max_distance=10**6
 
-# Find lines in repeat masker that match repeat base strings.
-sat3_matches = genomes_dir + HG002_CCS_dir + 'sat3_repeats.out'
+# Filter binned data base on simple threshold. Counts/ kb.
+motif_threshold = 15
+repeat_data = load_bin_bam(genomes_dir+genome.binned_repeats)
+repeat_data = filter_pandas(repeat_data, count=[10, math.inf])
 
-extract_matching_strings(HG002_CCS_rm, sat3_matches, repeats)
+#histplot(repeat_data['count'].values,'TEAD motifs/2kb', bin_count=150)
 
+# Looking at histograms of the data, there's basically three densities of TEAD motifs. Very low, and two high. Let's look
+# at data in each of these density ranges.
+low_density=[0,70]
+med_density=[70,150]
+hi_density =[150,math.inf]
 
-# Filter sat3 data based on parameters.
-repeat_data = load_repeat_masker_data(sat3_matches)
-repeat_data = filter_pandas(repeat_data, score=[1000, float('inf')],length=[15, float('inf')])
+# Make a new column for classification.
+repeat_data['class']=''
+# Label data by class.
+low_data = (repeat_data['count'] > low_density[0]) & (repeat_data['count'] <= low_density[1])
+repeat_data.loc[low_data,'class']='low'
+med_data = (repeat_data['count'] > med_density[0]) & (repeat_data['count'] <= med_density[1])
+repeat_data.loc[med_data,'class']='medium'
+high_data = (repeat_data['count'] > hi_density[0]) & (repeat_data['count'] <= hi_density[1])
+repeat_data.loc[high_data,'class']='high'
 
-# open up the genome for quick random access. Need to check if index was generated.
-fasta = get_fasta_faidx( HG002_CCS_genome )
+# Histogram by chromosome?
+#plotting.histplot(repeat_data.loc[repeat_data['class'] == 'high', 'contig'], 'contig', title='high')
 
-# Create a dataframe for total output.
-column_names = ['contig','ref_start','ref_end','repeat_type','transcript_name', 'start_position', 'length', 'distance_to_repeat', 'gene_loc'] #, 'seq']
+# load genome.
+fasta = get_fasta_faidx( genome.base_dir+genome.genome_fa )
+# load aligned rna bam. **make sure to create bam file index: "samtools index **.bam"
+rna_bam = pysam.AlignmentFile(genome.base_dir+genome.rna)
+
+#Create a dataframe for total output.
+column_names = ['contig','ref_start','ref_end','repeat_type','transcript_name', 'start_position', 'length', \
+                'distance_to_repeat', 'gene_loc']
 L=list()
+
 # Loop over repeatmasker entries that match the sat3 repeats, get their center location in the assembly. Find the closest transcript(s).
 for index, rep_row in repeat_data.iterrows():
-
-    sat_start=rep_row['query_start']
-    sat_end = rep_row['query_end']
+    sat_start=rep_row['start']
+    sat_end = rep_row['stop']
     # Search for RNAs within 'max_distance'.
-    rna_search_range = [max(sat_start - max_distance, 0), min(sat_end + max_distance, fasta.get_reference_length(rep_row['query_name']))]
-    rna_matches = rna_bam.fetch(reference=rep_row['query_name'], start=rna_search_range[0], end=rna_search_range[1])
-
+    rna_search_range = [max(sat_start - max_distance, 0), min(sat_end + max_distance, fasta.get_reference_length(rep_row['contig']))]
+    rna_matches = rna_bam.fetch(reference=rep_row['contig'], start=rna_search_range[0], end=rna_search_range[1])
 
     # iterate over reads, append to matches dataframe
     mini_list=list()
     positions=list()
+    print(index,repeat_data.shape[0])
     for read in rna_matches:
-
         distance2repeat, gene_loc = nearest_distance( [sat_start, sat_end], [read.reference_start, read.reference_end])
-        mini_list.append([rep_row['query_name'], rep_row['query_start'], rep_row['query_end'], rep_row['repeat_name'], read.query_name, read.reference_start, read.query_length, distance2repeat, gene_loc])
+        mini_list.append([rep_row['contig'], rep_row['start'], rep_row['stop'], rep_row['class'], read.query_name, read.reference_start, read.query_length, distance2repeat, gene_loc])
         # keep track of positions for filtering out later.
         positions.append(read.positions)
 
-    # Do a quick filter to remove similar transcripts. First just by location, then by sequence?
-    #keep = filter_similar_transcripts(positions)
-    #keep_list = list()
-    #for i in keep:
-    #    keep_list.append( mini_list[i] )
-
-    # concat to big list.
-    #L.extend(keep_list)
     # Keep all matches.
     L.extend(mini_list)
 
 # Convert list to df.
 DATA=pd.DataFrame(L,columns=column_names)
 # Save DATA to file.
-DATA.to_csv('all_matches_10k.dat', sep='\t', index=False)
+DATA.to_csv(genome.base_dir+'/all_matches_'+str(max_distance)+'.dat', sep='\t', index=False)
 
 # Test reading/fetching from sam file.
 #read = sat_bam.fetch("NC_000004.12",1,50000)
 #for x in read:
 #    print(str(x))
+
+
 
 
