@@ -34,6 +34,7 @@ def generate_rna_dataframe():
     column_names = ['transcript_name','start_position','length','distance_to_repeat','gene_loq','seq']
     data = pd.DataFrame(columns=column_names)
 
+
 # Load repeat masker-style data.
 def load_repeat_masker_data(in_file):
     data = pd.read_csv( in_file, header=None, delim_whitespace=True, usecols=range(15))
@@ -43,6 +44,7 @@ def load_repeat_masker_data(in_file):
     data["length"] = data["query_end"] - data["query_start"]
 
     return data
+
 
 # Load simple bam file. *** might need to change column definition.
 def load_bin_bam(in_file):
@@ -56,6 +58,7 @@ def load_bin_bam(in_file):
     data = data.astype({'contig': str, 'start': int, 'stop': int, 'count': int})
 
     return data
+
 
 # Filter dataframe by column values. All filters are specified [min,max] range.
 def filter_pandas(data, **filters):
