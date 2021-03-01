@@ -10,5 +10,12 @@ class gen:
     # Add
     def add_field(self, field_name, file_str):
         setattr(self, field_name, file_str)
-        #self.(field_name) = file_str
+
+    # Add a file.
+    def add_file(self, field_name, file_str,type='relative'):
+        if type is 'relative':
+            setattr(self,field_name,self.base_dir+file_str)
+        elif type is 'full':
+            setattr(self, field_name, file_str)
+
 

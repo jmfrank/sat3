@@ -1,10 +1,12 @@
+# Look at tissue-specific expression of genes nearby Sat3 repeats.
+
 import os, pysam, math
 import pandas as pd
 from gen import gen
+import plotting
+import numpy as np
 
-from utilities import extract_matching_strings, load_repeat_masker_data, get_fasta_faidx, generate_rna_dataframe
-from utilities import nearest_distance, filter_pandas, filter_similar_transcripts
-from utilities import load_bin_bam
+
 
 # Define file system.
 genomes_dir ='/media/ngs/data/genomes/chm13_v1.0/'
@@ -13,26 +15,68 @@ genome_fa = 'chm13.draft_v1.0.fasta'
 genome = gen(genomes_dir, genome_fa)
 
 # Add repeat bin file.
-genome.add_field('binned_repeats','binned_CATTCC.bed')
+genome.add_file('binned_repeats','binned_CATTCC.bed')
 
 # Add rna mapped to genome.
-genome.add_field('rna','RNA_aligned.bam')
+genome.add_file('rna','RNA_aligned.bam')
 
 # add gene list.
-genome.add_field('genes', 'all_matches_1M.dat')
-
+genome.add_file('genes', 'all_matches_1M.dat')
+# add tissue data.
+genome.add_file('tissues','/media/ngs/data/ncbi_expression/summary_PRJEB4337.csv', type='full')
 # read gene list.
-genes=pd.read_csv(genome.base_dir+genome.genes, delim_whitespace=True)
-genes['names'] = ''
+genes=pd.read_csv(genome.genes, delim_whitespace=True)
 
-# retrieve the gene name from accession number.
-names = pd.read_csv('acc_vs_name.txt', delim_whitespace=True, header=None)
-names.columns = ['acc','names']
+# Let's look at distribution of distance from sat3 block to genes.
+plotting.histplot(genes['distance_to_repeat'].values,'dist to repeats', bin_count=400)
 
-for index, rep_row in genes.iterrows():
-    this_acc = rep_row['transcript_name']
-    # find this acc in the names df.
-    genes.loc[index, 'names'] = names.loc[names['acc']== this_acc, 'names'].values[0]
+# Cut-off
+max_dist=1000000
+
+genes_sel = genes.loc[ genes['distance_to_repeat']<max_dist]
+# Reduce by unique.
+genes_unique = genes_sel['names'].unique()
+genes_unique = genes_sel.loc[genes_sel['names'].str.contains('LOC'),'names'].unique()
+plotting.histplot(genes_sel['distance_to_repeat'].values,'dist to repeats', bin_count=100)
+
+# Load tissues.
+tissue_data = pd.read_csv(genome.tissues, sep='\t')
+
+# for gene in genes_unique:
+#     DATA = tissue_data[ tissue_data['symbol']==gene]
+#     if DATA.shape[0] == 0:
+#         print('Did not find gene in tissue data')
+#         continue
+#     print(DATA)
+#     plotting.tissue_bar(DATA)
+#     input()
+# genes_unique
+
+# Load sperm rna-seq.
+rna_counts = pd.read_csv('/media/ngs/data/GSE144085_sperm_stem_cells/summary_table.csv', sep=',')
+idx=[]
+for gene in genes_unique:
+    # Get index of gene.
+    idx.append( rna_counts.index[ rna_counts['name']==gene].values[0])
 
 
-# Need to filter transcripts so we only have unique reads?
+# Perform averaging and std'ing.
+rna_counts['mean_kit']= rna_counts.iloc[:,1:4].mean(axis=1)
+rna_counts['std_kit'] = rna_counts.iloc[:,1:4].std(axis=1)
+rna_counts['mean_PLPPR3']= rna_counts.iloc[:,5:8].mean(axis=1)
+rna_counts['std_PLPPR3'] = rna_counts.iloc[:,5:8].std(axis=1)
+
+rna_counts.loc[idx]
+
+ratio=rna_counts.loc[idx,'mean_kit'] / rna_counts.loc[idx,'mean_PLPPR3']
+ratio.loc[(ratio==0) | (ratio.isna())]=0.01
+ratio=ratio.replace(np.inf,  100)
+#plotting.histplot(ratio, 'ratio', bin_count=50)
+plotting.histplot(np.log10(ratio), 'ratio', bin_count=50)
+
+# Compare to all? Maybe counts aren't normalized / sample?
+ratio_all=rna_counts['mean_kit'] / rna_counts['mean_PLPPR3']
+ratio_all.loc[(ratio_all==0) | (ratio_all.isna())]=0.01
+ratio_all=ratio_all.replace(np.inf,  100)
+#plotting.histplot(ratio, 'ratio', bin_count=50)
+plotting.histplot(np.log10(ratio_all), 'ratio', bin_count=500)
