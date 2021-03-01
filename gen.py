@@ -1,3 +1,4 @@
+import pysam
 
 
 # Class for keeping track of a particular genome and associated files.
@@ -18,4 +19,11 @@ class gen:
         elif type is 'full':
             setattr(self, field_name, file_str)
 
+
+    # Get pysam method for genome fasta file
+    def get_genome_pysam(self):
+
+        fasta = pysam.FastaFile( self.base_dir + self.genome_fa )
+
+        return fasta
 
