@@ -171,5 +171,29 @@ def filter_similar_transcripts( indices, cutoff=0.2):
 
     return non_redundant
 
+# Write fasta from list.
+def write_fasta_from_list(file_name, fa_list, names=None):
+
+    # If names not supplied as list, then just make up sequences.
+    if names is None:
+        names=[str(x) for x in range(1, len(fa_list)+1) ]
+
+    with open(file_name, 'w') as fa_file:
+        for i, seq in enumerate(fa_list):
+            fa_file.write(">" + names[i] + "\n")
+            # Write 80-character width.
+            this_len = len(seq)
+            j = 0
+            c=True
+            while c:
+                print(j*80+80)
+                if j*80+80 >= this_len:
+                    this_line=seq[j*80:this_len]
+                    c=False
+                else:
+                    this_line = seq[j*80:(j*80)+80]
+
+                fa_file.write(this_line + "\n")
+                j=j+1
 
 
