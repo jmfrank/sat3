@@ -40,8 +40,10 @@ def meme2bed(in_file, out_file):
     out_f.close()
 
 
-dir='/home/matt/Dropbox/code_bank/sat3/u2os_super_enhancers/'
+# input.
+meme_file = '/home/matt/Dropbox/code_bank/sat3/fimo/long_motif.fimo.out'
 
-meme_file = dir + 'enhancers_CATTCC_fimo.out'
-bed_file = dir + 'enhancers_CATTCC_fimo.bed'
+#output.
+dir='/media/ngs/data/genomes/chm13_v1.0/'
+bed_file = dir + 'long_motif.fimo.bed'
 meme2bed(meme_file, bed_file)

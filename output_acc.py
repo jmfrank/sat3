@@ -20,9 +20,7 @@ for i, l in enumerate(df.GI):
     I.append(int(l.strip("['").strip("']")))
     gi_list.write( l.strip("['").strip("']") + "\n")
 
-
 gi_list.close()
-
 
 # Output from satellite analysis.
 dat_file = '/media/ngs/py_projects/sat3/all_matches.dat'

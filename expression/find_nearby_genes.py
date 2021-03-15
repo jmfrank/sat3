@@ -1,8 +1,12 @@
 # Find genetic elements nearby CATTCC repeat clusters.
 
-import os, pysam, math
+import os, pysam, math, sys, tqdm
 import pandas as pd
+currentdir = os.path.dirname(os.path.realpath(__file__))
+parentdir = os.path.dirname(currentdir)
+sys.path.append(parentdir)
 from gen import gen
+import plotting
 
 from utilities import extract_matching_strings, load_repeat_masker_data, get_fasta_faidx, generate_rna_dataframe
 from utilities import nearest_distance, filter_pandas, filter_similar_transcripts
@@ -26,9 +30,8 @@ max_distance=10**6
 # Filter binned data base on simple threshold. Counts/ kb.
 motif_threshold = 15
 repeat_data = load_bin_bam(genomes_dir+genome.binned_repeats)
-repeat_data = filter_pandas(repeat_data, count=[10, math.inf])
-
-#histplot(repeat_data['count'].values,'TEAD motifs/2kb', bin_count=150)
+repeat_data = filter_pandas(repeat_data, count=[2, math.inf])
+plotting.histplot(repeat_data['count'].values,'TEAD motifs/2kb', bin_count=150)
 
 # Looking at histograms of the data, there's basically three densities of TEAD motifs. Very low, and two high. Let's look
 # at data in each of these density ranges.
@@ -47,7 +50,7 @@ high_data = (repeat_data['count'] > hi_density[0]) & (repeat_data['count'] <= hi
 repeat_data.loc[high_data,'class']='high'
 
 # Histogram by chromosome?
-#plotting.histplot(repeat_data.loc[repeat_data['class'] == 'high', 'contig'], 'contig', title='high')
+plotting.histplot(repeat_data.loc[repeat_data['class'] == 'high', 'contig'], 'contig', title='high', label_rotation=45)
 
 # load genome.
 fasta = get_fasta_faidx( genome.base_dir+genome.genome_fa )
@@ -55,12 +58,12 @@ fasta = get_fasta_faidx( genome.base_dir+genome.genome_fa )
 rna_bam = pysam.AlignmentFile(genome.base_dir+genome.rna)
 
 #Create a dataframe for total output.
-column_names = ['contig','ref_start','ref_end','repeat_type','transcript_name', 'start_position', 'length', \
+column_names = ['contig','ref_start','ref_end','repeat_type','motif_counts','transcript_name', 'start_position', 'length', \
                 'distance_to_repeat', 'gene_loc']
 L=list()
 
 # Loop over repeatmasker entries that match the sat3 repeats, get their center location in the assembly. Find the closest transcript(s).
-for index, rep_row in repeat_data.iterrows():
+for index, rep_row in tqdm(repeat_data.iterrows()):
     sat_start=rep_row['start']
     sat_end = rep_row['stop']
     # Search for RNAs within 'max_distance'.
@@ -70,10 +73,9 @@ for index, rep_row in repeat_data.iterrows():
     # iterate over reads, append to matches dataframe
     mini_list=list()
     positions=list()
-    print(index,repeat_data.shape[0])
     for read in rna_matches:
         distance2repeat, gene_loc = nearest_distance( [sat_start, sat_end], [read.reference_start, read.reference_end])
-        mini_list.append([rep_row['contig'], rep_row['start'], rep_row['stop'], rep_row['class'], read.query_name, read.reference_start, read.query_length, distance2repeat, gene_loc])
+        mini_list.append([rep_row['contig'], rep_row['start'], rep_row['stop'], rep_row['class'], rep_row['count'], read.query_name, read.reference_start, read.query_length, distance2repeat, gene_loc])
         # keep track of positions for filtering out later.
         positions.append(read.positions)
 

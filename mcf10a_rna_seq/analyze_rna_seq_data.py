@@ -11,15 +11,14 @@ currentdir = os.path.dirname(os.path.realpath(__file__))
 parentdir = os.path.dirname(currentdir)
 sys.path.append(parentdir)
 
-base_dir = '/media/ngs/data/PRJNA251691_U2OS_riboZero/'
+base_dir = '/media/ngs/data/10A_rna_seq_rRNA_depl_GSE150003/'
 
 # Sra ids.
-sras=["SRR1363096", "SRR1363098", "SRR1363099", "SRR1363100"]
+sras=["SRR11714175", "SRR11714176", "SRR11714177", "SRR11714178","SRR11714179","SRR11714180","SRR11714181","SRR11714182"]
 
 # array for est_counts.
-est_counts=np.empty([163975,4])
+est_counts=np.empty([163975,len(sras)])
 
-# First loop over KIT+
 for i, sra in enumerate(sras):
     this_file = base_dir + sra + '/abundance.tsv'
     this_data = pd.read_csv(this_file, sep='\t')
@@ -41,7 +40,7 @@ reduced = np.empty([unique_names.shape[0],8])
 
 for i, n in enumerate(tqdm(unique_names)):
     # Sum over transcript variants.
-    reduced[i,] = out_data.iloc[(out_data['name']==n).values, 3:11].sum().values
+    reduced[i,] = out_data.iloc[(out_data['name']==n).values, 3:3+len(sras)+1].sum().values
 
 out_data_reduced=pd.DataFrame(unique_names)
 out_data_reduced.columns=['name']

@@ -1,10 +1,19 @@
 # Utilities for analyzing genomic datas.
 # Scratch script for getting started with genomics.
 
-import os
+import os, pickle
 import pysam
 import pandas as pd
 import numpy as np
+
+### PICKLES
+def save_obj(obj, name ):
+    with open(name, 'wb') as f:
+        pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
+
+def load_obj(name):
+    with open(name, 'rb') as f:
+        return pickle.load(f)
 
 # Get access to fasta. Auto-creates fai index.
 def get_fasta_faidx( in_file):

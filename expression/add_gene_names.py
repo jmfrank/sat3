@@ -1,9 +1,9 @@
 # Just adds gene names, i.e. symbols to data.
 
 import os, pysam, math
+from tqdm import tqdm
 import pandas as pd
 from gen import gen
-
 from utilities import extract_matching_strings, load_repeat_masker_data, get_fasta_faidx, generate_rna_dataframe
 from utilities import nearest_distance, filter_pandas, filter_similar_transcripts
 from utilities import load_bin_bam
@@ -21,7 +21,7 @@ genome.add_field('binned_repeats','binned_CATTCC.bed')
 genome.add_field('rna','RNA_aligned.bam')
 
 # add gene list.
-genome.add_field('genes', 'all_matches_1M.dat')
+genome.add_field('genes', 'all_matches_1000000.dat')
 
 # read gene list.
 genes=pd.read_csv(genome.base_dir+genome.genes, delim_whitespace=True)
@@ -31,10 +31,10 @@ genes['names'] = ''
 names = pd.read_csv('acc_vs_name.txt', delim_whitespace=True, header=None)
 names.columns = ['acc','names']
 
-for index, rep_row in genes.iterrows():
+### **** FIX LOOP. Should loop over unique genes, not all rows ***
+for index, rep_row in tqdm(genes.iterrows(), total=genes.shape[0]):
     this_acc = rep_row['transcript_name']
     # find this acc in the names df.
     genes.loc[index, 'names'] = names.loc[names['acc']== this_acc, 'names'].values[0]
 
-
-# Need to filter transcripts so we only have unique reads?
+genes.to_csv(genome.base_dir+genome.genes, sep='\t', index=False)

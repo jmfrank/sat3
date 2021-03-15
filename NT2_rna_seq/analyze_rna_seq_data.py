@@ -15,10 +15,11 @@ base_dir = '/media/ngs/data/NT2_D1_GSM3720309/'
 sras=["SRR8885667", "SRR8885668", "SRR8885669", "SRR8885679", "SRR8885680", "SRR8885681"]
 
 # array for est_counts.
-est_counts=np.empty([163975,4])
+est_counts=np.empty([163975,len(sras)])
 
 # First loop over sras
 for i, sra in enumerate(sras):
+    print(i)
     this_file = base_dir + sra + '/abundance.tsv'
     this_data = pd.read_csv(this_file, sep='\t')
     est_counts[:,i]=this_data['tpm']
@@ -35,14 +36,14 @@ out_data.insert(1, 'name', acc_vs_name['name'])
 
 #Now we need to reduce the data by looping over unique names and summing est_counts.
 unique_names = out_data['name'].unique()
-reduced = np.empty([unique_names.shape[0],4])
+reduced = np.empty([unique_names.shape[0], len(sras)])
 
 for i, n in enumerate(tqdm(unique_names)):
     # Sum over transcript variants.
-    reduced[i,] = out_data.iloc[(out_data['name']==n).values, 3:10].sum().values
+    reduced[i,] = out_data.iloc[(out_data['name']==n).values, 3:9].sum().values
 
 out_data_reduced=pd.DataFrame(unique_names)
 out_data_reduced.columns=['name']
 out_data_reduced[sras]=reduced
 
-out_data_reduced.to_csv(base_dir+'summary_table.csv',index=False)
+out_data_reduced.to_csv(base_dir+'summary_table.csv', index=False)

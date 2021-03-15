@@ -21,22 +21,7 @@ from matplotlib.collections import BrokenBarHCollection
 # ideograms, once for genes).  The rest of this script will be prepping data
 # for input to this function
 #
-def chromosome_collections(df, y_positions, height, **kwargs):
-    """
-    Yields BrokenBarHCollection of features that can be added to an Axes
-    object.
-    Parameters
-    ----------
-    df : pandas.DataFrame
-        Must at least have columns ['chrom', 'start', 'end', 'color']. If no
-        column 'width', it will be calculated from start/end.
-    y_positions : dict
-        Keys are chromosomes, values are y-value at which to anchor the
-        BrokenBarHCollection
-    height : float
-        Height of each BrokenBarHCollection
-    Additional kwargs are passed to BrokenBarHCollection
-    """
+def chromosome_collections(df, y_positions, height, cmap , **kwargs):
     del_width = False
     if 'width' not in df.columns:
         del_width = True
@@ -44,32 +29,28 @@ def chromosome_collections(df, y_positions, height, **kwargs):
     for chrom, group in df.groupby('chrom'):
         print(chrom)
         # Perform colormap as needed.
-        norm_vals = (group['count'] / ideo['count'].max())
+        norm_vals = (group['count'] / df['count'].max())
         # Log-norm.
-        #norm_vals = np.log10(group['count'])/ np.log10(ideo['count'].max())
-        #norm_vals[ norm_vals == -np.inf] = 0
-        COLORS = get_color_map(norm_vals,'hot')
+        norm_vals = np.log10(group['count'])/ np.log10(df['count'].max())
+        norm_vals[ norm_vals == -np.inf] = 0
+        COLORS = get_color_map(norm_vals, cmap)
         yrange = (y_positions[chrom], height)
         xranges = group[['start', 'width']].values
-
         # Create rectangle that surrounds chromosome.
         rec = matplotlib.patches.Rectangle([xranges[0,0], yrange[0]], xranges[-1,0], height, angle=0.0,facecolor=None, fill=False)
         yield (BrokenBarHCollection(
             xranges, yrange, facecolors=COLORS, **kwargs), rec)
-
-
     if del_width:
         del df['width']
 
 # Colormap.
-def get_color_map( vals, cmap_name):
+def get_color_map( vals, cmap):
     # Colormap.
-    cmap = matplotlib.cm.get_cmap(cmap_name)
     COLORS = cmap(vals)
-    COLORS[:,3]=vals
-    COLORS[:,0]=1
-    COLORS[:,1]=0
-    COLORS[:,2]=0
+    #COLORS[:,3]=vals
+    #COLORS[:,0]=1
+    #COLORS[:,1]=0
+    #COLORS[:,2]=0
     return COLORS
 
 # Height of each ideogram
@@ -90,7 +71,7 @@ figsize = (6, 8)
 
 # Decide which chromosomes to use
 chromosome_list = ['chr%s' % i for i in range(1, 23)] + ['M', 'chrX', 'chrY']
-
+chromosome_list = ['chr13','chr14','chr15', 'chr21', 'chr22']
 # Keep track of the y positions for ideograms and genes for each chromosome,
 # and the center of each ideogram (which is where we'll put the ytick labels)
 ybase = 0
@@ -107,7 +88,7 @@ for chrom in chromosome_list[::-1]:
     ybase += chrom_height + chrom_spacing
 
 # Read in BED data.
-bed_file = '/media/ngs/data/genomes/chm13_v1.0/binned_CATTCC_counts.bed'
+bed_file = '/media/ngs/data/genomes/chm13_v1.0/binned_CATTCC.bed'
 
 ideo = pandas.read_table(
     bed_file,
@@ -126,9 +107,12 @@ ideo['width'] = ideo.end - ideo.start
 
 fig = plt.figure(figsize=figsize)
 ax = fig.add_subplot(111)
+# Define colormap
+cmap = matplotlib.cm.get_cmap('Reds')
+norm = matplotlib.colors.Normalize(vmin=0, vmax=np.log10(ideo['count'].max()))
 # Now all we have to do is call our function for the ideogram data...
 print("adding ideograms...")
-for collection in chromosome_collections(ideo, chrom_ybase, chrom_height):
+for collection in chromosome_collections(ideo, chrom_ybase, chrom_height, cmap):
     ax.add_collection(collection[0])
     ax.add_patch(collection[1])
 
@@ -137,4 +121,11 @@ for collection in chromosome_collections(ideo, chrom_ybase, chrom_height):
 ax.set_yticks([chrom_centers[i] for i in chromosome_list])
 ax.set_yticklabels(chromosome_list)
 ax.axis('tight')
+
 plt.show()
+fig_t, ax_t = plt.subplots()
+fig_t.subplots_adjust(bottom=0.5)
+
+cb = matplotlib.colorbar.ColorbarBase(ax_t, cmap=cmap,norm=norm,orientation='vertical')
+cb.set_label('log10(density)')
+fig_t.show()
